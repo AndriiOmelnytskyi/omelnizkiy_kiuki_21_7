@@ -28,7 +28,7 @@ class _StudentsScreenState extends State<StudentsScreen> {
     ),
   ];
 
-  void _addOrEditStudent({Student? student, int? index}) {
+  void _openStudent({Student? student, int? index}) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -81,14 +81,14 @@ class _StudentsScreenState extends State<StudentsScreen> {
             background: Container(color: Colors.red),
             onDismissed: (_) => _deleteStudent(index),
             child: InkWell(
-              onTap: () => _addOrEditStudent(student: student, index: index),
+              onTap: () => _openStudent(student: student, index: index),
               child: StudentItem(student: student),
             ),
           );
         },
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _addOrEditStudent(),
+        onPressed: () => _openStudent(),
         backgroundColor: Colors.green,
         label: const Text('Додати'),
         icon: const Icon(Icons.person_add),
