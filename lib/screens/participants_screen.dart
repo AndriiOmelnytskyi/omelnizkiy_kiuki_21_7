@@ -3,42 +3,34 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/participants_provider.dart';
 import '../widgets/participant_card.dart';
 import '../widgets/participant_form.dart';
-import '../models/participant.dart';
+
 class ParticipantsScreen extends ConsumerWidget {
   const ParticipantsScreen({super.key});
 
   void _openParticipantForm(
     BuildContext context,
     WidgetRef ref, {
-    Participant? participant,
     int? index,
   }) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       builder: (_) => Material(
-        child: ParticipantForm(
-          participant: participant,
-          onSave: (updatedParticipant) {
-            if (index != null) {
-              ref
-                  .read(participantsProvider.notifier)
-                  .updateMember(index, updatedParticipant);
-            } else {
-              ref.read(participantsProvider.notifier).addMember(updatedParticipant);
-            }
-          },
-        ),
+        child: ParticipantForm(participantId: index,),
       ),
     );
   }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final participants = ref.watch(participantsProvider);
+    final state = ref.watch(participantsProvider);
+
+    if (state.loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
 
     return Scaffold(
-      body: participants.isEmpty
+      body: state.partisipants.isEmpty
           ? const Center(
               child: Text(
                 'Немає учасників',
@@ -46,15 +38,14 @@ class ParticipantsScreen extends ConsumerWidget {
               ),
             )
           : ListView.builder(
-              itemCount: participants.length,
+              itemCount: state.partisipants.length,
               itemBuilder: (context, index) {
-                final participant = participants[index];
+                final participant = state.partisipants[index];
                 return ParticipantCard(
                   participant: participant,
                   onEdit: () => _openParticipantForm(
                     context,
                     ref,
-                    participant: participant,
                     index: index,
                   ),
                   onDelete: () {
@@ -75,7 +66,11 @@ class ParticipantsScreen extends ConsumerWidget {
                           },
                         ),
                       ),
-                    );
+                    ).closed.then((value) {
+                      if (value != SnackBarClosedReason.action) {
+                        ref.read(participantsProvider.notifier).delFromServer();
+                      }
+                    });
                   },
                 );
               },

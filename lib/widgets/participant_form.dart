@@ -1,49 +1,62 @@
 import 'package:flutter/material.dart';
 import '../models/participant.dart';
 import '../models/division.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../providers/participants_provider.dart';
 
-class ParticipantForm extends StatefulWidget {
-  final Function(Participant) onSave;
-  final Participant? participant;
+class ParticipantForm extends ConsumerStatefulWidget {
+  final int? participantId;
 
-  const ParticipantForm({super.key, required this.onSave, this.participant});
+  const ParticipantForm({
+    super.key,
+    this.participantId
+  });
 
   @override
-  _ParticipantFormState createState() => _ParticipantFormState();
+  ConsumerState<ConsumerStatefulWidget> createState() => _ParticipantFormState();
 }
 
-class _ParticipantFormState extends State<ParticipantForm> {
+class _ParticipantFormState extends ConsumerState<ParticipantForm> {
   final _firstNameController = TextEditingController();
   final _lastNameController = TextEditingController();
-  late Division _selectedDivision;
-  late GenderType _selectedGender;
-  late int _score;
+  late Division _selectedDivision = Division.tech;
+  late GenderType _selectedGender = GenderType.male;
+  late int _score = 0;
 
   @override
   void initState() {
     super.initState();
-    if (widget.participant != null) {
-      _firstNameController.text = widget.participant!.givenName;
-      _lastNameController.text = widget.participant!.surname;
-      _selectedDivision = widget.participant!.division;
-      _selectedGender = widget.participant!.gender;
-      _score = widget.participant!.score;
-    } else {
-      _selectedDivision = Division.tech;
-      _selectedGender = GenderType.male;
-      _score = 0;
+    if (widget.participantId != null) {
+      final student = ref.read(participantsProvider).partisipants[widget.participantId!];
+      _firstNameController.text = student.givenName;
+      _lastNameController.text = student.surname;
+      _selectedGender = student.gender;
+      _selectedDivision = student.division;
+      _score = student.score;
     }
   }
 
-  void _saveParticipant() {
-    final newParticipant = Participant(
-      givenName: _firstNameController.text.trim(),
-      surname: _lastNameController.text.trim(),
-      division: _selectedDivision,
-      score: _score,
-      gender: _selectedGender,
-    );
-    widget.onSave(newParticipant);
+  void _saveParticipant() async {
+    if (widget.participantId == null)  {
+      await ref.read(participantsProvider.notifier).addMember(
+            _firstNameController.text.trim(),
+            _lastNameController.text.trim(),
+            _selectedDivision,
+            _selectedGender,
+            _score,
+          );
+    } else {
+      await ref.read(participantsProvider.notifier).updateMember(
+            widget.participantId!,
+            _firstNameController.text.trim(),
+            _lastNameController.text.trim(),
+            _selectedDivision,
+            _selectedGender,
+            _score,
+          );
+    }
+
+    if (!context.mounted) return;
     Navigator.of(context).pop();
   }
 
@@ -52,7 +65,7 @@ class _ParticipantFormState extends State<ParticipantForm> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          widget.participant == null ? 'New Participant' : 'Edit Participant',
+          widget.participantId == null ? 'New Participant' : 'Edit Participant',
         ),
       ),
       body: Padding(
@@ -135,7 +148,7 @@ class _ParticipantFormState extends State<ParticipantForm> {
                     vertical: 12,
                   ),
                 ),
-                child: Text(widget.participant == null ? 'Save' : 'Update'),
+                child: Text(widget.participantId == null ? 'Save' : 'Update'),
               ),
             ],
           ),

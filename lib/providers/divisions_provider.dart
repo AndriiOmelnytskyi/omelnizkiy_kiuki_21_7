@@ -21,7 +21,7 @@ class DivisionsNotifier extends StateNotifier<List<DivisionData>> {
     final participants = participantsNotifier.state;
 
     final counts = Division.values.map((division) {
-      final totalMembers = participants
+      final totalMembers = participants.partisipants
           .where((participant) => participant.division == division)
           .length;
       return DivisionData(division: division, totalMembers: totalMembers);

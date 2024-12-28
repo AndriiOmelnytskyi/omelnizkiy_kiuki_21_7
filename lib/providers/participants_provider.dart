@@ -1,48 +1,139 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/participant.dart';
-import '../models/division.dart';
 
-class ParticipantsManager extends StateNotifier<List<Participant>> {
-  ParticipantsManager() : super([]);
+class ParticipantsState {
+  final List<Participant> partisipants;
+  final bool loading;
+  final String? errorOccured;
 
-  Participant? _lastRemovedParticipant;
-  int? _lastRemovedIndex;
+  ParticipantsState({
+    required this.partisipants,
+    required this.loading,
+    this.errorOccured,
+  });
 
-  void addMember(Participant participant) {
-    state = [...state, participant];
+  ParticipantsState copyWith({
+    List<Participant>? students,
+    bool? isLoading,
+    String? errorMessage,
+  }) {
+    return ParticipantsState(
+      partisipants: students ?? partisipants,
+      loading: isLoading ?? loading,
+      errorOccured: errorMessage ?? errorOccured,
+    );
   }
+}
 
-  void updateMember(int index, Participant updatedParticipant) {
-    final updatedList = [...state];
-    updatedList[index] = updatedParticipant;
-    state = updatedList;
-  }
+class ParticipantsManager extends StateNotifier<ParticipantsState> {
+  ParticipantsManager() : super(ParticipantsState(partisipants: [], loading: false));
 
-  void removeMember(int index) {
-    _lastRemovedParticipant = state[index];
-    _lastRemovedIndex = index;
+  Participant? _bufferPartisipant;
+  int? _bufferIndex;
 
-    state = [...state.sublist(0, index), ...state.sublist(index + 1)];
-  }
-
-  void undoRemove() {
-    if (_lastRemovedParticipant != null && _lastRemovedIndex != null) {
-      state = [
-        ...state.sublist(0, _lastRemovedIndex!),
-        _lastRemovedParticipant!,
-        ...state.sublist(_lastRemovedIndex!)
-      ];
-      _lastRemovedParticipant = null;
-      _lastRemovedIndex = null;
+  Future<void> loadStudents() async {
+    state = state.copyWith(isLoading: true, errorMessage: null);
+    try {
+      final students = await Participant.remoteGetList();
+      state = state.copyWith(students: students, isLoading: false);
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: e.toString(),
+      );
     }
   }
 
-  int getDivisionCount(Division division) {
-    return state.where((member) => member.division == division).length;
+  Future<void> addMember(
+    String givenName,
+    String surname,
+    division,
+    gender,
+    int score,
+  ) async {
+    try {
+      state = state.copyWith(isLoading: true, errorMessage: null);
+      final student = await Participant.remoteCreate(
+          givenName, surname, division, gender, score);
+      state = state.copyWith(
+        students: [...state.partisipants, student],
+        isLoading: false,
+      );
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: e.toString(),
+      );
+    }
+  }
+
+  Future<void> updateMember(
+    int index,
+    String givenName,
+    String surname,
+    division,
+    gender,
+    int score,
+  ) async {
+    state = state.copyWith(isLoading: true, errorMessage: null);
+    try {
+      final updatedStudent = await Participant.remoteUpdate(
+        state.partisipants[index].id,
+        givenName,
+        surname,
+        division,
+        gender,
+        score,
+      );
+      final updatedList = [...state.partisipants];
+      updatedList[index] = updatedStudent;
+      state = state.copyWith(students: updatedList, isLoading: false);
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: e.toString(),
+      );
+    }
+  }
+
+  void removeMember(int index) {
+    _bufferPartisipant = state.partisipants[index];
+    _bufferIndex = index;
+    final updatedList = [...state.partisipants];
+    updatedList.removeAt(index);
+    state = state.copyWith(students: updatedList);
+  }
+
+  void undoRemove() {
+    if (_bufferPartisipant != null && _bufferIndex != null) {
+      final updatedList = [...state.partisipants];
+      updatedList.insert(_bufferIndex!, _bufferPartisipant!);
+      state = state.copyWith(students: updatedList);
+    }
+  }
+
+  Future<void> delFromServer() async {
+    state = state.copyWith(isLoading: true, errorMessage: null);
+    try {
+      if (_bufferPartisipant != null) {
+        await Participant.remoteDelete(_bufferPartisipant!.id);
+        _bufferPartisipant = null;
+        _bufferIndex = null;
+      }
+      state = state.copyWith(isLoading: false);
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: e.toString(),
+      );
+    }
   }
 }
 
 final participantsProvider =
-    StateNotifierProvider<ParticipantsManager, List<Participant>>((ref) {
-  return ParticipantsManager();
+    StateNotifierProvider<ParticipantsManager, ParticipantsState>((ref) {
+
+  final notifier = ParticipantsManager();
+  notifier.loadStudents();
+  return notifier;
 });

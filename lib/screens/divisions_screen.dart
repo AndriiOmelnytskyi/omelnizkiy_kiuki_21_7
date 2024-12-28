@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/division.dart';
 import '../providers/divisions_provider.dart';
+import '../providers/participants_provider.dart';
 
 class DivisionsScreen extends ConsumerWidget {
   const DivisionsScreen({super.key});
@@ -9,6 +10,11 @@ class DivisionsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final divisions = ref.watch(divisionsProvider);
+    final state = ref.watch(participantsProvider);
+
+    if (state.loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
 
     return GridView.builder(
       padding: const EdgeInsets.all(16),
